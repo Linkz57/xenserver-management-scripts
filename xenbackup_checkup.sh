@@ -11,6 +11,13 @@
 # so this will watch for errors created by xenbackup.sh
 
 
+## on Debian, I set up the mailer with
+##   apt install exim4-daemon-light mailutils && dpkg-reconfigure exim4-config
+## now I can pipe things to "mail" and it works great.
+
+## to get ssh working automatically (not requiring a password)
+## use ssh-keygen and ssh-copy-id
+## I followed a guide here: http://www.thegeekstuff.com/2008/11/3-steps-to-perform-ssh-login-without-password-using-ssh-keygen-ssh-copy-id
 
 
 # Thanks to Christopher Neylan for the following statement using grep's exit code for if conditional
