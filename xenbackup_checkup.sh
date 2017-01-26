@@ -51,7 +51,7 @@ rm -f xenbackup_fail.mail
 
 if ssh root@OMITTED "ls -laFh /root/backup*" | grep failed >> xenbackup_fail.mail; then
 	read lastEmail < xenBackup_errors.lock
-	if [ $(($now - $lastEmail)) > $tooLongSinceLastRun ] ; then
+	if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
 		## If this is true, then it's been long enough since the last error was found to schedule another email.
 		echo "Failure report found"
 		echo "cat `pwd -P`/xenbackup_fail.mail | mail -s \"XenBackup ran and failed now or in the past.     If I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname\" $alertEmail" | at 08:00
@@ -74,7 +74,7 @@ if ssh root@OMITTED "cat /var/log/SMlog" | grep -i chain >> xenbackup_fail.mail;
 	## Finally, that log should tell you where to start looking to heal your snapshot chain. 
 	## Maybe tell it to forget about whatever snapshot its crowing about.
 	read lastEmail < xenServer_errors.lock
-	if [ $(($now - $lastEmail)) > $tooLongSinceLastRun ] ; then
+	if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
 		## If this is true, then it's been long enough since the last error was found to schedule another email.
 		echo "cat `pwd -P`/xenbackup_fail.mail | mail -s \"Your snapshots are failing, probably your backups too!     If I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname\" $alertEmail" | at 08:00
 		echo "`\date +%s`" > xenServer_errors.lock
@@ -87,10 +87,10 @@ fi
 ## Check for success of xenbackup.sh
 ssh root@OMITTED "cat success.log" > success.log
 read first < success.log
-if [ $(($now - $first)) > $tooLongSinceBackup ] ; then
+if [ $(($now - $first)) -gt $tooLongSinceBackup ] ; then
 	## If this is true, then it's been too long since you've had a successful backup.
 	read lastEmail < xenBackup_success.lock
-	if [ $(($now - $lastEmail)) > $tooLongSinceLastRun ] ; then
+	if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
 		## If this is true, then it's been long enough since the last error was found to schedule another email.
 		echo "printf \"It's been more than `echo \"$tooLong / 86400\" | bc` days since your XenServer VMs have successfully been backed up.\nYou should probably look into this.\n\nIf I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname\" | mail -s \"Your XenServer backups haven't run in a while\" $alertEmail" | at 08:00
 		echo "`\date +%s`" > xenBackup_success.lock
