@@ -23,7 +23,7 @@ fillLine=80
 ## If this is true, any backup batch that consumes less than 100 Gibabytes should be suspicious, right?
 ## I mean, it's possible that this means some VMs failed to backup, or were stopped half way through backing up, or something equally devious.
 ## Set a threshold here, under which a backup folder COULD be considered suspicious. If this script finds one such folder under this threshold, it will email you and stop.
-## My threshold will be one-hundred thirty Gigabytes or Gibabytes. I'm not sure which.
+## My threshold will be one-hundred thirty Gibabytes.
 dangerZone=130G
 ## Where do you want these emails sent? You can put as many addresses as you want between those quotation marks.
 myEmail="tyler.francis@jelec.com"
