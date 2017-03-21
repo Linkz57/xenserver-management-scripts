@@ -4,7 +4,7 @@
 # on 2016-08-24
 # Website: github.com/linkz57
 #
-# Version 1.2.2
+# Version 1.2.4
 #
 # The idea is to make sure xenbackup is working.
 # No one likes silent failures for their backups
@@ -52,7 +52,7 @@ rm -f xenbackup_fail.mail
 ## Thanks to Christopher Neylan for the following statement using grep's exit code for if conditional
 ## https://stackoverflow.com/questions/9422461/check-if-directory-mounted-with-bash
 
-if ssh root@xenmaster "ls -laFh /root/backup*" 2>/dev/null | grep failed >> xenbackup_fail.mail; then
+if ssh root@xenmaster -o ConnectTimeout=10 -o BatchMode=yes "ls -laFh /root/backup*" 2>/dev/null | grep failed >> xenbackup_fail.mail; then
 	read lastEmail < xenBackup_errors.lock
 	if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
 		## If this is true, then it's been long enough since the last error was found to schedule another email.
@@ -66,7 +66,7 @@ fi
 
 
 ## Check for errors left by XenServer
-if ssh root@xenmaster "cat /var/log/SMlog" | grep -i chain >> xenbackup_fail.mail; then
+if ssh root@xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat /var/log/SMlog" | grep -i chain >> xenbackup_fail.mail; then
 	## If this is true, then I found the word "chain" in the current XenServer log file,
 	## which means one of your snapshots probably failed,
 	## probably because your XenServer isn't coalescing its VDIs properly.
@@ -88,7 +88,7 @@ fi
 
 
 ## Check for success of xenbackup.sh
-ssh root@xenmaster "cat success.log" > success.log
+ssh root@xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat success.log" > success.log
 if [[ $(find success.log -type f -size +5c 2>/dev/null) ]]; then
 	read first < success.log
 	if [ $(($now - $first)) -gt $tooLongSinceBackup ] ; then
@@ -96,7 +96,7 @@ if [[ $(find success.log -type f -size +5c 2>/dev/null) ]]; then
 		read lastEmail < xenBackup_success.lock
 		if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
 			## If this is true, then it's been long enough since the last error was found to schedule another email.
- 			echo "printf \"It's been more than `echo \"$tooLong / 86400\" | bc` days since your XenServer VMs have successfully been backed up.\nYou should probably look into this.\n\nIf I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname\" | mail -s \"Your XenServer backups haven't run in a while\" $alertEmail" | at 08:00
+			echo $(printf "It's been more than $(echo "$tooLongSinceLastRun / 86400" | bc) days since your XenServer VMs have successfully been backed up.\nYou should probably look into this.\n\nIf I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname" | mail -s "Your XenServer backups haven't run in a while" $alertEmail) | at 08:00
 			echo "`\date +%s`" > xenBackup_success.lock
 		fi
 	fi
