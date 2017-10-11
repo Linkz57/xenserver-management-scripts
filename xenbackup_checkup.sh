@@ -4,7 +4,7 @@
 # on 2016-08-24
 # Website: github.com/linkz57
 #
-# Version 1.2.8
+# Version 1.2.9
 #
 # The idea is to make sure xenbackup is working.
 # No one likes silent failures for their backups
@@ -42,11 +42,6 @@ tooLongSinceLastRun=43200
 grep 'echo "`\\date +%s`"' $SCRIPTPATH | awk '{ print $5 }' | while read lockFiles ; do if test -e "$lockFiles" ; then true ; else echo 0 > $lockFiles ; fi ; done
 
 rm -f xenbackup_fail.mail
-
-## Assume we haven't scheduled an email yet.
-## If we have, then that first if statement should replace this value.
-lastEmail=0
-
 
 ## Alright. Now that the stage is set,
 ## let us actually check on XenServer.
@@ -109,7 +104,7 @@ if [[ $(find success.log -type f -size +5c 2>/dev/null) ]]; then
         fi
 else
         read lastEmail < xenBackup_success.lock
-        if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
+        if [ -z "$lastEmail" ] || [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
                 printf "I can't find any proof that any backup has ever occured. Did you change your XenServer backup manager? It used to be the machine at $xenmaster " | mail -s "Your XenServer backups have never run?" $alertEmail | at 08:00
                 #Your backup manager used to be at `grep "cat success.log" $SCRIPTPATH | cut -d'@' -f2 | cut -d' ' -f1`
                 echo "`\date +%s`" > xenBackup_success.lock
