@@ -74,7 +74,7 @@ if ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat /var/log/SMlog
         echo 'probably because your XenServer is not coalescing its VDIs properly.' >> ~/xenserver_errors_suggestion.txt
         echo 'Once you find out which VM failed to backup, try running "xe vm-list | grep -i -B 5 -A 5 MahBustedVM" on your Pool Master' >> ~/xenserver_errors_suggestion.txt
         echo 'and then pasting those top UUIDs into the end of' >> ~/xenserver_errors_suggestion.txt
-        echo "xe host-call-plugin host-uuid=$(xe host-list | grep $(hostname) -B 1 | head -n 1 | awk '{print $5}') plugin=coalesce-leaf fn=leaf-coalesce args:vm_uuid=MahBustedVM_VDI_UUIDs" >> ~/xenserver_errors_suggestion.txt
+        echo "xe host-call-plugin host-uuid=\$(xe host-list | grep \$(hostname) -B 1 | head -n 1 | awk '{print $5}') plugin=coalesce-leaf fn=leaf-coalesce args:vm_uuid=MahBustedVM_VDI_UUIDs" >> ~/xenserver_errors_suggestion.txt
         echo 'while keeping your eye on "tail -f /var/log/SMlog" in another window/SSH session.' >> ~/xenserver_errors_suggestion.txt
         echo 'Finally, that log should tell you where to start looking to heal your snapshot chain.' >> ~/xenserver_errors_suggestion.txt
         echo 'Maybe tell it to forget about whatever snapshot its crowing about.' >> ~/xenserver_errors_suggestion.txt
