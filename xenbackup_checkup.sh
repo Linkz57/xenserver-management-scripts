@@ -4,7 +4,7 @@
 # on 2016-08-24
 # Website: github.com/linkz57
 #
-# Version 1.2.9
+# Version 1.2.14
 #
 # The idea is to make sure xenbackup is working.
 # No one likes silent failures for their backups
@@ -51,10 +51,12 @@ rm -f xenbackup_fail.mail
 
 ## Check for errors left by xenbackup.sh
 
+unset sshError
+sshError=$( (ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "ls -laFh /root/backup*" > /dev/null) 2>&1 )
+
 ## Thanks to Christopher Neylan for the following statement using grep's exit code for if conditional
 ## https://stackoverflow.com/questions/9422461/check-if-directory-mounted-with-bash
-
-if ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "ls -laFh /root/backup*" 2>/dev/null | grep failed >> xenbackup_fail.mail; then
+if [ -z "$sshError" ] &&  ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "ls -laFh /root/backup*" 2>/dev/null | grep failed >> xenbackup_fail.mail; then
         read lastEmail < xenBackup_errors.lock
         if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
                 ## If this is true, then it's been long enough since the last error was found to schedule another email.
@@ -68,20 +70,26 @@ fi
 
 
 ## Check for errors left by XenServer
-if ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat /var/log/SMlog" | grep -i chain >> ~/xenbackup_fail.mail; then
+unset sshError
+sshError=$( (ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "stat /var/log/SMlog" > /dev/null) 2>&1 )
+
+if [ -z "$sshError" ] && ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat /var/log/SMlog" | grep -i chain >> ~/xenbackup_fail.mail; then
         echo 'If this is true, then I found the word "chain" in the current XenServer log file,' > ~/xenserver_errors_suggestion.txt
         echo 'which means one of your snapshots probably failed,' >> ~/xenserver_errors_suggestion.txt
         echo 'probably because your XenServer is not coalescing its VDIs properly.' >> ~/xenserver_errors_suggestion.txt
         echo 'Once you find out which VM failed to backup, try running "xe vm-list | grep -i -B 5 -A 5 MahBustedVM" on your Pool Master' >> ~/xenserver_errors_suggestion.txt
         echo 'and then pasting those top UUIDs into the end of' >> ~/xenserver_errors_suggestion.txt
-        echo "xe host-call-plugin host-uuid=\$(xe host-list | grep \$(hostname) -B 1 | head -n 1 | awk '{print $5}') plugin=coalesce-leaf fn=leaf-coalesce args:vm_uuid=MahBustedVM_VDI_UUIDs" >> ~/xenserver_errors_suggestion.txt
+        echo "xe host-call-plugin host-uuid=\$(xe host-list | grep \$(hostname) -B 1 | head -n 1 | awk '{print \$5}') plugin=coalesce-leaf fn=leaf-coalesce args:vm_uuid=MahBustedVM_VDI_UUIDs" >> ~/xenserver_errors_suggestion.txt
         echo 'while keeping your eye on "tail -f /var/log/SMlog" in another window/SSH session.' >> ~/xenserver_errors_suggestion.txt
         echo 'Finally, that log should tell you where to start looking to heal your snapshot chain.' >> ~/xenserver_errors_suggestion.txt
         echo 'Maybe tell it to forget about whatever snapshot its crowing about.' >> ~/xenserver_errors_suggestion.txt
+        echo '' >> ~/xenserver_errors_suggestion.txt
+        echo 'If I am wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname' >> ~/xenserver_errors_suggestion.txt
+        echo '' >> ~/xenserver_errors_suggestion.txt
         read lastEmail < xenServer_errors.lock
         if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
                 ## If this is true, then it's been long enough since the last error was found to schedule another email.
-                echo "cat ~/xenbackup_fail.mail ~/xenserver_errors_suggestion.txt | mail -s \"Your snapshots are failing, probably your backups too!     If I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname\" $alertEmail" | at 08:00
+                echo "cat ~/xenserver_errors_suggestion.txt ~/xenbackup_fail.mail | mail -s \"Your snapshots at $xenmaster are failing, probably your backups too!\" $alertEmail" | at 8am
                 echo "`\date +%s`" > xenServer_errors.lock
         fi
 fi
@@ -90,22 +98,24 @@ fi
 
 
 ## Check for success of xenbackup.sh
+sshError=$( (ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat success.log" > /dev/null) 2>&1 )
+
 ssh root@$xenmaster -o ConnectTimeout=10 -o BatchMode=yes "cat success.log" > success.log
-if [[ $(find success.log -type f -size +5c 2>/dev/null) ]]; then
+if [ -z "$sshError" ] && [[ $(find success.log -type f -size +5c 2>/dev/null) ]]; then
         read first < success.log
         if [ $(($now - $first)) -gt $tooLongSinceBackup ] ; then
                 ## If this is true, then it's been too long since you've had a successful backup.
                 read lastEmail < xenBackup_success.lock
                 if [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
                         ## If this is true, then it's been long enough since the last error was found to schedule another email.
-                        echo $(printf "It's been more than $(echo "$tooLongSinceLastRun / 86400" | bc) days since your XenServer VMs have successfully been backed up.\nYou should probably look into this.\n\nIf I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname" | mail -s "Your XenServer backups haven't run in a while" $alertEmail) | at 08:00
+                        echo $(printf "It's been more than $(echo "$tooLongSinceLastRun / 86400" | bc) days since your XenServer VMs have successfully been backed up.\nYou should probably look into this.\n\nIf I'm wrong or wasting your attention, feel free to edit me at $SCRIPTPATH on $hostname" | mail -s "Your XenServer backups haven't run in a while" $alertEmail) | at 8am
                         echo "`\date +%s`" > xenBackup_success.lock
                 fi
         fi
 else
         read lastEmail < xenBackup_success.lock
         if [ -z "$lastEmail" ] || [ $(($now - $lastEmail)) -gt $tooLongSinceLastRun ] ; then
-                printf "I can't find any proof that any backup has ever occured. Did you change your XenServer backup manager? It used to be the machine at $xenmaster " | mail -s "Your XenServer backups have never run?" $alertEmail | at 08:00
+                printf "I can't find any proof that any backup has ever occured. Did you change your XenServer backup manager? It used to be the machine at $xenmaster " | mail -s "Your XenServer backups have never run?" $alertEmail | at 8am
                 #Your backup manager used to be at `grep "cat success.log" $SCRIPTPATH | cut -d'@' -f2 | cut -d' ' -f1`
                 echo "`\date +%s`" > xenBackup_success.lock
         fi
