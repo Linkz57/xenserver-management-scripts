@@ -38,7 +38,10 @@ myEmail="tyler dot francis at jelec.com"
 \rm -f $cleanDir/clean.mail
 
 function clean {
-	cd "$cleanDir/$1" || exit 1
+	cd "$cleanDir/$1" || {
+		echo 'Execution directory inaccessible' >&2
+		exit 1
+	}
 
 	## Quick check to make sure I'm not about to delete good old folders if bad new folders exist.
 	if du -bh --threshold=-$dangerZone "$cleanDir/$1" | grep / > /dev/null
